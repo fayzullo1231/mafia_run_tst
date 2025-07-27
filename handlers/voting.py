@@ -3,6 +3,9 @@ from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardBut
 from collections import defaultdict
 from models.game_state import active_game, ROLE_NAMES_UZ
 from asyncio import sleep
+from aiogram.exceptions import TelegramBadRequest
+from handlers.kamikade_action import kamikadze_hanged
+from handlers.suicider_role import check_suicider_hanging  # ✅ Suidsid import
 
 router = Router()
 
@@ -71,18 +74,21 @@ async def handle_final_vote(callback: CallbackQuery, bot: Bot):
         ]
     )
 
-    await bot.edit_message_reply_markup(
-        chat_id=chat_id,
-        message_id=active_game["final_vote_message_id"],
-        reply_markup=vote_markup
-    )
+    try:
+        await bot.edit_message_reply_markup(
+            chat_id=chat_id,
+            message_id=active_game["final_vote_message_id"],
+            reply_markup=vote_markup
+        )
+    except TelegramBadRequest as e:
+        if "message is not modified" not in str(e):
+            raise
 
     await callback.answer("✅ Ovoz qabul qilindi.")
 
 
 async def start_voting(bot: Bot):
     players = active_game["players"]
-
 
     for player in players:
         vote_buttons = [
@@ -142,8 +148,13 @@ async def finish_voting(bot: Bot):
     no = len(final_vote_results["no"])
     final_role = active_game["assignments"].get(selected_id, 'Nomaʼlum')
 
+    result_text = (
+        f"Ovoz berish natijalari:\n{yes} 👍 | {no} 👎\n"
+        f"<b>{selected_name}</b> {'osildi ☠️' if yes > no else 'qutuldi.'}"
+    )
+
     await bot.edit_message_text(
-        f"Ovoz berish natijalari:\n{yes} 👍 | {no} 👎\n<b>{selected_name}</b> {'osildi ☠️' if yes > no else 'qutuldi.'}",
+        result_text,
         chat_id=chat_id,
         message_id=active_game["final_vote_message_id"],
         parse_mode="HTML"
@@ -155,6 +166,15 @@ async def finish_voting(bot: Bot):
             f"🦦 {selected_name} - {ROLE_NAMES_UZ.get(final_role, 'Nomaʼlum')} edi",
             parse_mode="HTML"
         )
+
+        # ✅ Suicider tekshirish
+        if await check_suicider_hanging(selected_id, bot):
+            return  # Suicider yutdi — o‘yin tugadi
+
+        # Kamikadze tekshirish
+        if active_game["assignments"].get(selected_id) == "kamikadze":
+            await kamikadze_hanged(bot, chat_id)
+
         active_game["players"] = [p for p in active_game["players"] if p["id"] != selected_id]
         active_game["assignments"].pop(selected_id, None)
 

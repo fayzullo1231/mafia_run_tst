@@ -17,12 +17,15 @@ async def handle_doctor_save(callback: CallbackQuery, bot: Bot):
         await callback.answer("❗ Bu faqat Shifokor uchun!", show_alert=True)
         return
 
+    # ✅ MAJNUN — redirect logikasi shu yerga qo‘shiladi:
+    if active_game.get("layli_for_redirect") == data:
+        data = active_game.get("majnun_redirect_to")
+
     active_game["doctor_target"] = data
     target_name = next((p["name"] for p in active_game["players"] if p["id"] == data), "Nomaʼlum")
 
     await callback.message.edit_text(f"💊 Davolash tanlandi: {target_name}")
     await callback.answer("✅ Davolash tanlandi.")
-
 
 # BU FUNKSIYANI SEN start_night() da chaqirasan
 async def doctor_action(bot: Bot):

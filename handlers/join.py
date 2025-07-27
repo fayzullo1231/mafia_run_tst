@@ -2,7 +2,7 @@ from aiogram import Router, Bot
 from aiogram.types import Message
 from aiogram.filters import CommandStart
 from models.game_state import active_game
-from .game_flow import update_registration_message, start_game_if_ready
+from .game_flow import update_registration_message, start_game_now_logic
 
 router = Router()
 
@@ -28,5 +28,4 @@ async def start_with_deeplink(message: Message, bot: Bot):
         parse_mode="HTML"
     )
 
-    if len(active_game["players"]) >= 5:
-        await start_game_if_ready(bot)
+

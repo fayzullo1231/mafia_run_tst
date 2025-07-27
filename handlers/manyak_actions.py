@@ -21,7 +21,13 @@ async def handle_manyak_kill(callback: CallbackQuery, bot: Bot):
         await callback.message.edit_text("❌ Manyak bu tun hech kimni o‘ldirmaydi.")
     else:
         target_id = int(data)
+
+        # ✅ MAJNUN LOGIKASI
+        if active_game.get("layli_for_redirect") == target_id:
+            target_id = active_game.get("majnun_redirect_to")
+
         active_game["manyak_target"] = target_id
+
         target_name = next((p["name"] for p in active_game["players"] if p["id"] == target_id), "Nomaʼlum")
         await callback.message.edit_text(f"🔪 Manyak o‘z nishonini tanladi: {target_name}")
 
