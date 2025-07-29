@@ -6,29 +6,33 @@ MAFIYALAR = {"don", "mafiya", "advokat"}
 BETARAF_ROLLAR = {"mashuqa", "oqituvchi", "afirist", "sotuvchi", "tentak", "muxlis"}
 YAKKA_ROLLAR = {"minior", "suidsid", "manyak", "mergan", "ogri", "buqalamun", "kimyogar", "donning_xotini", "majnun"}
 
-# Rol bo‘yicha ajratamiz
-category_map = {
-    "🔵 Tinch axolilar": [],
-    "🔴 Mafiyalar": [],
-    "🔴 Advokat": [],
-    "🟡 Betaraflar": [],
-    "⚫ Yakka rollar": [],
-}
-
-
 def generate_role_summary(assignments: dict) -> str:
     players = active_game["players"]
+
+    # Har safar yangidan kategoriya ro'yxatlari
+    category_map = {
+        "🔵 Tinch axolilar": [],
+        "🔴 Mafiyalar": [],
+        "🔴 Advokat": [],
+        "🟡 Betaraflar": [],
+        "⚫ Yakka rollar": [],
+    }
+
     text = "<b>Tirik o'yinchilar:</b>\n"
 
     for i, player in enumerate(players, start=1):
-        text += f"{i}. <a href='tg://user?id={player['id']}'>{player['name']}</a>\n"
+        user_id = player["id"]
+        role = assignments.get(user_id)
+        text += f"{i}. <a href='tg://user?id={user_id}'>{player['name']}</a>\n"
 
-
-    for user_id, role in assignments.items():
+        # Faqat tirik foydalanuvchilarning rollarini kategoriya bo'yicha ajratamiz
         if role in TANCH_AHOLILAR:
             category_map["🔵 Tinch axolilar"].append(role)
         elif role in MAFIYALAR:
-            category_map["🔴 Mafiyalar"].append(role)
+            if role == "advokat":
+                category_map["🔴 Advokat"].append(role)
+            else:
+                category_map["🔴 Mafiyalar"].append(role)
         elif role in BETARAF_ROLLAR:
             category_map["🟡 Betaraflar"].append(role)
         elif role in YAKKA_ROLLAR:
@@ -48,6 +52,5 @@ def generate_role_summary(assignments: dict) -> str:
         joined = ", ".join(role_counts)
         text += f"\n{cat_name} – {len(roles)}\n{joined}\n"
 
-    text += f"\n<b>Jami:</b> {len(assignments)} ta"
+    text += f"\n<b>Jami:</b> {len(players)} ta"
     return text
-

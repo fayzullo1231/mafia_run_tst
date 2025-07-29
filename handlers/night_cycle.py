@@ -209,7 +209,7 @@ async def start_night(bot: Bot):
             await bot.send_message(
                 chat_id,
                 f"Tunda {role_name} <a href='tg://user?id={killed_player['id']}'>{killed_player['name']}</a> vahshiylarcha o'ldirildi...\n"
-                "Aytishlaricha u 🧕 Don tomonidan o‘ldirilgan.",
+                "Aytishlaricha u 🤵🏻 Don tomonidan o‘ldirilgan.",
                 parse_mode="HTML"
             )
 
@@ -228,8 +228,12 @@ async def start_night(bot: Bot):
                 parse_mode="HTML"
             )
 
-    # 🔰 HECH KIM O'LMAGAN HOLAT
-    if (not mafia_target or mafia_target == doctor_target) and (not manyak_target or manyak_target == doctor_target):
+    # 🔰 HECH KIM O'LMAGAN HOLAT (faqat ro‘yxatdan hech kim o‘chmagan bo‘lsa)
+    players_before = set(p["id"] for p in active_game["players"])
+    # bu yerga o‘ldirilganlar ustidagi barcha kodlar kirgan bo‘lishi kerak edi (yuqorida ular ishlagan)
+    players_after = set(p["id"] for p in active_game["players"])
+
+    if players_before == players_after:
         await bot.send_message(chat_id, "🛡 Bu tun hech kim halok bo‘lmadi.", parse_mode="HTML")
 
     await notify_daydi(bot)

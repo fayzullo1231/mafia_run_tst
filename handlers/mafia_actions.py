@@ -11,10 +11,19 @@ async def handle_mafia_kill(callback: CallbackQuery, bot: Bot):
     user_id = callback.from_user.id
     data = callback.data.split(":")[1]
 
-    don_id = next(k for k, v in active_game["assignments"].items() if v == "don")
+    mafia_roles = ["don", "mafiya"]
+    mafia_ids = [
+        pid for pid, role in active_game["assignments"].items()
+        if role in mafia_roles
+    ]
 
-    if user_id != don_id:
-        await callback.answer("❗ Bu faqat Don uchun!", show_alert=True)
+    if user_id not in mafia_ids:
+        await callback.answer("❗ Bu faqat mafiyalar uchun!", show_alert=True)
+        return
+
+    # Allaqachon tanlangan bo‘lsa, boshqa mafiyalar tanlay olmasin
+    if "mafia_target" in active_game and active_game["mafia_target"] is not None:
+        await callback.answer("⚠️ Tanlov allaqachon bajarilgan.", show_alert=True)
         return
 
     if data == "skip":
@@ -25,38 +34,39 @@ async def handle_mafia_kill(callback: CallbackQuery, bot: Bot):
         active_game["mafia_target"] = target_id
         target_name = next((p["name"] for p in active_game["players"] if p["id"] == target_id), "Nomaʼlum")
 
-        # KAMIKADZE TEKSHIRUV
+        # Kamikadze tekshiruv
         if active_game["assignments"].get(target_id) == "kamikadze":
-            await kamikadze_shot(bot, active_game["chat_id"], shooter_id=don_id, kamikadze_id=target_id)
-            # Kamikadze va Don o'lganidan keyin mafia_target ni o'chirib tashlaymiz
+            from handlers.kamikade_action import kamikadze_shot
+            await kamikadze_shot(bot, active_game["chat_id"], shooter_id=user_id, kamikadze_id=target_id)
             active_game["mafia_target"] = None
             await callback.message.edit_text(f"💣 Kamikadze: {target_name} ni urishga urinildi. Ikkalasi ham halok.")
         else:
             await callback.message.edit_text(f"☠️ Tanlangan nishon: {target_name}")
 
-    await callback.answer("✅ Tanlandi.")
+    await callback.answer("✅ Tanlov bajarildi.")
 
-
-# night_cycle ichida chaqiriladigan funksiya
 async def mafia_action(bot: Bot):
-    don_id = next((k for k, v in active_game["assignments"].items() if v == "don"), None)
+    mafia_roles = ["don", "mafiya"]
     players = active_game["players"]
 
-    if not don_id:
-        return  # Don bo'lmasa, hech nima qilmaydi.
-
-    mafia_target_buttons = [
-        [InlineKeyboardButton(text=p["name"], callback_data=f"mafia_kill:{p['id']}")]
-        for p in players if p["id"] != don_id
+    mafia_ids = [
+        pid for pid, role in active_game["assignments"].items()
+        if role in mafia_roles
     ]
-    mafia_target_buttons.append(
+
+    # Nishonlar (mafiya bo'lmaganlar)
+    target_buttons = [
+        [InlineKeyboardButton(text=p["name"], callback_data=f"mafia_kill:{p['id']}")]
+        for p in players if active_game["assignments"].get(p["id"]) not in mafia_roles
+    ]
+    target_buttons.append(
         [InlineKeyboardButton(text="❌ Hech kim", callback_data="mafia_kill:skip")]
     )
+    markup = InlineKeyboardMarkup(inline_keyboard=target_buttons)
 
-    markup = InlineKeyboardMarkup(inline_keyboard=mafia_target_buttons)
-
-    await bot.send_message(
-        don_id,
-        "☠️ Kimni o‘ldirasiz? Tanlang:",
-        reply_markup=markup
-    )
+    for mafia_id in mafia_ids:
+        await bot.send_message(
+            mafia_id,
+            "☠️ Kimni o‘ldirasiz? Tanlang:",
+            reply_markup=markup
+        )
