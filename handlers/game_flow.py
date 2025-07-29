@@ -5,7 +5,7 @@ from asyncio import create_task, sleep
 from datetime import datetime
 import random
 
-from models.game_state import active_game, ROLE_NAMES_UZ
+from models.game_state import active_game, ROLE_POOL
 from utils.role_summary import generate_role_summary
 from handlers.night_cycle import start_night
 from handlers.voting import start_voting
@@ -13,15 +13,25 @@ from models.game_state import get_roles_for_player_count
 
 router = Router()
 
+
+def reset_game_state():
+    active_game["players"] = []
+    active_game["assignments"] = {}
+    active_game["is_active"] = False
+    active_game["day"] = 1
+
+    for key in ROLE_POOL:
+        active_game.pop(key, None)
+
+
 @router.message(Command("start_game"))
 async def start_game(msg: Message, bot: Bot):
     try:
-        await msg.delete()  # Komandani yuborgan odamning xabarini o‘chirish
+        await msg.delete()
     except:
         pass
 
     if active_game.get("is_active"):
-        # O'yin allaqachon boshlangan bo‘lsa – faqat ro‘yxatni yuboradi
         player_list = "\n".join([
             f"– <a href='tg://user?id={p['id']}'>{p['name']}</a>"
             for p in active_game["players"]
@@ -36,7 +46,6 @@ async def start_game(msg: Message, bot: Bot):
         return
 
     if active_game.get("players"):
-        # Agar ro‘yxat mavjud bo‘lsa (yangi boshlanmagan), uni davom ettiradi
         player_list = "\n".join([
             f"– <a href='tg://user?id={p['id']}'>{p['name']}</a>"
             for p in active_game["players"]
@@ -74,6 +83,18 @@ async def start_game(msg: Message, bot: Bot):
 
     create_task(wait_and_start(bot))
 
+@router.message(Command("stop"))
+async def stop_game(msg: Message, bot: Bot):
+    if not active_game.get("is_active"):
+        await msg.answer("❌ Hech qanday o‘yin faol emas.")
+        return
+
+    chat_id = active_game.get("chat_id", msg.chat.id)
+
+    await bot.send_message(chat_id, "⛔ O‘yin to‘xtatildi. Barcha ma'lumotlar bekor qilindi.", parse_mode="HTML")
+
+    reset_game_state()
+
 
 async def update_registration_message(bot: Bot):
     chat_id = active_game["chat_id"]
@@ -110,7 +131,7 @@ async def update_registration_message(bot: Bot):
 
 
 async def wait_and_start(bot: Bot):
-    await sleep(180)  # 3 daqiqa kutadi
+    await sleep(180)
     if not active_game["is_active"] and len(active_game["players"]) >= 5:
         await start_game_now_logic(bot)
 
@@ -153,21 +174,32 @@ async def start_game_now_logic(bot: Bot):
 async def run_game_cycle(bot: Bot):
     chat_id = active_game["chat_id"]
     start_time = datetime.now()
+    winner_type = None
+
+    mafia_roles = [
+        "mafiya", "don", "donning_xotini", "muxlis", "kimyogar"
+    ]
 
     while active_game["is_active"]:
-        mafia = ["mafiya", "don"]
-        alive_mafia = [p for p in active_game["players"] if active_game["assignments"].get(p["id"]) in mafia]
-        alive_civilians = [p for p in active_game["players"] if active_game["assignments"].get(p["id"]) not in mafia]
+        alive_mafia = [
+            p for p in active_game["players"]
+            if active_game["assignments"].get(p["id"]) in mafia_roles
+        ]
+        alive_civilians = [
+            p for p in active_game["players"]
+            if active_game["assignments"].get(p["id"]) not in mafia_roles
+        ]
 
         if not alive_mafia:
+            winner_type = "civilian"
             await bot.send_message(chat_id, "🎉 Tinch aholi g‘alaba qozondi!", parse_mode="HTML")
             active_game["is_active"] = False
-            winner_type = "civilian"
             break
+
         if len(alive_mafia) >= len(alive_civilians):
+            winner_type = "mafia"
             await bot.send_message(chat_id, "💀 Mafiya g‘alaba qozondi!", parse_mode="HTML")
             active_game["is_active"] = False
-            winner_type = "mafia"
             break
 
         await start_night(bot)
@@ -176,7 +208,6 @@ async def run_game_cycle(bot: Bot):
         await sleep(2)
         active_game["day"] += 1
 
-    # 🏁 O‘yin yakuni — natijalarni chiqaramiz
     end_time = datetime.now()
     duration = end_time - start_time
     minutes = duration.seconds // 60
@@ -187,7 +218,6 @@ async def run_game_cycle(bot: Bot):
 
     winners = []
     losers = []
-    mafia_roles = ["mafiya", "don"]
 
     for p in players:
         user_id = p["id"]
@@ -216,3 +246,6 @@ async def run_game_cycle(bot: Bot):
     )
 
     await bot.send_message(chat_id, result_text, parse_mode="HTML")
+
+    # ♻️ Tozalash
+    reset_game_state()

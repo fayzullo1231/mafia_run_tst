@@ -27,10 +27,9 @@ from handlers.muxlis_actions import muxlis_action, router as muxlis_router
 from handlers.buqalamun_actions import buqalamun_action  # tepadagi importlarga qo‘shing
 from handlers.thief_actions import thief_action  # yuqoriga import qiling
 
-
 async def start_night(bot: Bot):
     chat_id = active_game["chat_id"]
-
+    players_before = set(p["id"] for p in active_game["players"])
     # 🌅 TUN BOSHLANDI VIDEO YOKI TEXT
     if os.path.exists("media/sunset.mp4"):
         await bot.send_video(
@@ -229,7 +228,6 @@ async def start_night(bot: Bot):
             )
 
     # 🔰 HECH KIM O'LMAGAN HOLAT (faqat ro‘yxatdan hech kim o‘chmagan bo‘lsa)
-    players_before = set(p["id"] for p in active_game["players"])
     # bu yerga o‘ldirilganlar ustidagi barcha kodlar kirgan bo‘lishi kerak edi (yuqorida ular ishlagan)
     players_after = set(p["id"] for p in active_game["players"])
 
