@@ -20,10 +20,6 @@ async def handle_vote(callback: CallbackQuery, bot: Bot):
     user_id = callback.from_user.id
     data = callback.data.split(":")[1]
 
-    if user_id in voted_users:
-        await callback.answer("❗ Siz allaqachon ovoz berdingiz!", show_alert=True)
-        return
-
     if data == "skip":
         await callback.message.edit_text("⏭ Ovoz berish o'tkazildi.")
     else:
@@ -50,10 +46,6 @@ async def handle_final_vote(callback: CallbackQuery, bot: Bot):
     user_id = callback.from_user.id
     chat_id = callback.message.chat.id
     vote_type = callback.data.split(":")[1]
-
-    if user_id not in [p["id"] for p in active_game["players"]]:
-        await callback.answer("❗ Faqat o‘yindagi ishtirokchilar ovoz bera oladi!", show_alert=True)
-        return
 
     old_vote = final_vote_users.get(user_id)
     if old_vote:
